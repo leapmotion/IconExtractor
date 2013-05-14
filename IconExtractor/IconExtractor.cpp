@@ -9,32 +9,38 @@ using namespace std;
 void PrintUsage(wchar_t* argv[]) {
 	// EXE name first, followed by the desired dimensions
 	cout << "Usage:" << endl
-			<< argv[0] << " <img> [width]" << endl;
+			<< argv[0] << " <img> <outname> [width]" << endl;
 }
 
 int wmain(int argc, wchar_t* argv[])
 {
+	// Argument parsing
 	wstring imgName;
-	int width;
+	wstring outName = L"out.png";
+	int width = 0;
 	switch(argc) {
+	case 4:
+		if(wstringstream(argv[3]) >> width)
+		{
+	case 3:
+			outName = argv[2];
+	case 2:
+			imgName = argv[1];
+			break;
+		}
 	default:
 		return PrintUsage(argv), -1;
-	case 3:
-		{
-			wstringstream sstr(argv[2]);
-			if(!(sstr >> width))
-				return PrintUsage(argv), -1;
-		} 
-	case 2:
-		imgName = argv[1];
 	}
 
 	// Try to construct an extractor:
 	try {
 		PEAnalyzer analyzer(imgName, width);
 
-		// Iterate through known images, and find the largest image that doesn't go over
-		// the requested size:
+		// Save the loaded image in the destination path
+		HANDLE hIcon = analyzer.GetApplicationIcon();
+		void* pData = LockResource(hIcon);
+
+		UnlockResource(hIcon);
 	} catch(std::exception& ex) {
 		cout << ex.what() << endl;
 		return -1;

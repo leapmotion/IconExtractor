@@ -10,7 +10,7 @@ using std::remove_pointer;
 class PEAnalyzer
 {
 public:
-	PEAnalyzer(const wstring& path);
+	PEAnalyzer(const wstring& path, int width = 0);
 	~PEAnalyzer(void);
 
 private:
