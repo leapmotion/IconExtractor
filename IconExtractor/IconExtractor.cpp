@@ -35,12 +35,7 @@ int wmain(int argc, wchar_t* argv[])
 	// Try to construct an extractor:
 	try {
 		PEAnalyzer analyzer(imgName, width);
-
-		// Save the loaded image in the destination path
-		HANDLE hIcon = analyzer.GetApplicationIcon();
-		void* pData = LockResource(hIcon);
-
-		UnlockResource(hIcon);
+		analyzer.Save(outName);
 	} catch(std::exception& ex) {
 		cout << ex.what() << endl;
 		return -1;
