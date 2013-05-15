@@ -16,12 +16,24 @@ PEAnalyzer::PEAnalyzer(const wstring& path, int width):
 {
 	memset(&iconInfo, 0, sizeof(iconInfo));
 
-	m_hModule = LoadLibraryEx(path.c_str(), nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+	m_hModule = LoadLibraryEx(path.c_str(), nullptr, LOAD_LIBRARY_AS_DATAFILE);
 	if(!m_hModule)
 		throw std::runtime_error("Failed to load the specified library");
 
+	// Determine the first-mentioned icon in the EXE:
+	wstring firstName;
+	EnumResourceNames(
+		m_hModule,
+		RT_GROUP_ICON,
+		[] (HMODULE hModule, _In_ LPCWSTR lpType, LPWSTR lpName, LONG_PTR lParam) -> BOOL {
+			*(wstring*)lParam = lpName;
+			return false;
+		},
+		(LONG_PTR)&firstName
+	);
+
 	// Obtain the main icon:
-	m_hMainIconRsrc = (HICON)LoadImage(m_hModule, L"MAINICON", IMAGE_ICON, width, 0, 0);
+	m_hMainIconRsrc = (HICON)LoadImage(m_hModule, firstName.c_str(), IMAGE_ICON, width, width, 0);
 	if(!m_hMainIconRsrc)
 		throw std::runtime_error("Failed to find the main icon");
 
@@ -43,21 +55,32 @@ PEAnalyzer::~PEAnalyzer(void)
 }
 
 void PEAnalyzer::Save(const wstring& path) {
+	// Get the real size of the icon
+	BITMAP bmpObj;
+	GetObject(iconInfo.hbmColor, sizeof(bmpObj), &bmpObj);
+
 	// Create the bitmap and the bitmap's mask:
-	Bitmap bmp(iconInfo.hbmColor, nullptr);
+	Bitmap bmp(bmpObj.bmWidth, bmpObj.bmHeight);
 	
 	// Start off with the backing bitmap:
 	Graphics dc(&bmp);
 
+	// Fill with total transparency:
+	SolidBrush transparent(Color(0x00, 0x00, 0xFF, 0xFF));
+	dc.FillRectangle(&transparent, 0, 0, bmpObj.bmWidth, bmpObj.bmHeight);
+
 	// Render the icon directly:
 	{
 		HDC hDC = dc.GetHDC();
-		DrawIconEx(hDC, 0, 0, m_hMainIconRsrc, 64, 64, 0, nullptr, DI_NORMAL);
+		SelectObject(hDC, GetStockObject(BLACK_BRUSH));
+		SelectObject(hDC, GetStockObject(NULL_PEN));
+
+		DrawIconEx(hDC, 0, 0, m_hMainIconRsrc, bmpObj.bmWidth, bmpObj.bmHeight, 0, nullptr, DI_NORMAL);
 		dc.ReleaseHDC(hDC);
 	}
 
 	CLSID pngClsid;
-	GetEncoderClsid(L"image/png", pngClsid);
+	GetEncoderClsid(L"image/bmp", pngClsid);
 	Gdiplus::Status stat = bmp.Save(path.c_str(), &pngClsid, nullptr);
 	switch(stat) {
 	case Gdiplus::Ok:
