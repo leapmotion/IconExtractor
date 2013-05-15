@@ -62,37 +62,59 @@ void PEAnalyzer::Save(const wstring& path) {
 	// Create the bitmap and the bitmap's mask:
 	Bitmap bmp(iconInfo.hbmColor, nullptr);
 	Bitmap bmpMask(iconInfo.hbmMask, nullptr);
+	Bitmap bmpDest(bmp.GetWidth(), bmp.GetHeight(), PixelFormat32bppARGB);
 
 	BitmapData colorData;
 	BitmapData maskData;
+	BitmapData destData;
 	{
 		Rect bounds(0, 0, bmp.GetWidth(), bmp.GetHeight());
 		bmp.LockBits(&bounds, ImageLockModeRead | ImageLockModeWrite, bmp.GetPixelFormat(), &colorData);
 		bmpMask.LockBits(&bounds, ImageLockModeRead | ImageLockModeWrite, bmp.GetPixelFormat(), &maskData);
+		bmpDest.LockBits(&bounds, ImageLockModeRead | ImageLockModeWrite, bmp.GetPixelFormat(), &destData);
 	}
 
 	// Manual mask operation:
 	union
 	{
-		char* pDest;
-		DWORD* pLine;
+		const char* pColor;
+		const DWORD* pColorPixel;
 	};
-	pDest = (char*)colorData.Scan0 + colorData.Height * colorData.Stride;
-	const char* pMask = (char*)maskData.Scan0 + maskData.Height * maskData.Stride;
+	pColor = (char*)colorData.Scan0 + colorData.Height * colorData.Stride;
+
+	union
+	{
+		const char* pMask;
+		const DWORD* pMaskPixel;
+	};
+	pMask = (char*)maskData.Scan0 + maskData.Height * maskData.Stride + 4;
+
+	union
+	{
+		char* pDest;
+		DWORD* pDestPixel;
+	};
+	pDest = (char*)destData.Scan0 + destData.Height * destData.Stride;
 
 	for(size_t y = colorData.Height; y--;) {
-		pDest -= colorData.Stride;
+		pColor -= colorData.Stride;
 		pMask -= maskData.Stride;
+		pDest -= destData.Stride;
 		for(size_t x = colorData.Width; x--;)
-			if(!pMask[x])
-				pLine[x] = 0;
+			if(pMaskPixel[x] & 0xFFFFFF)
+				pDestPixel[x] = 0x00FF00FF;
 			else
-				pLine[x] |= 0xFF000000;
+				pDestPixel[x] = pColorPixel[x] | 0xFF000000;
 	}
+
+	// Relese everything:
+	bmp.UnlockBits(&colorData);
+	bmpMask.UnlockBits(&maskData);
+	bmpDest.UnlockBits(&destData);
 
 	CLSID pngClsid;
 	GetEncoderClsid(L"image/png", pngClsid);
-	Gdiplus::Status stat = bmp.Save(path.c_str(), &pngClsid, nullptr);
+	Gdiplus::Status stat = bmpDest.Save(path.c_str(), &pngClsid, nullptr);
 	switch(stat) {
 	case Gdiplus::Ok:
 		break;
