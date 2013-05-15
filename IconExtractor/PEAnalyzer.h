@@ -23,6 +23,7 @@ private:
 	wstring m_path;
 
 	HMODULE m_hModule;
+	HICON m_hMainIconRsrc;
 	ICONINFOEXW iconInfo;
 
 public:
