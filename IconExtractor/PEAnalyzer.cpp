@@ -60,27 +60,38 @@ void PEAnalyzer::Save(const wstring& path) {
 	GetObject(iconInfo.hbmColor, sizeof(bmpObj), &bmpObj);
 
 	// Create the bitmap and the bitmap's mask:
-	Bitmap bmp(bmpObj.bmWidth, bmpObj.bmHeight);
-	
-	// Start off with the backing bitmap:
-	Graphics dc(&bmp);
+	Bitmap bmp(iconInfo.hbmColor, nullptr);
+	Bitmap bmpMask(iconInfo.hbmMask, nullptr);
 
-	// Fill with total transparency:
-	SolidBrush transparent(Color(0x00, 0x00, 0xFF, 0xFF));
-	dc.FillRectangle(&transparent, 0, 0, bmpObj.bmWidth, bmpObj.bmHeight);
-
-	// Render the icon directly:
+	BitmapData colorData;
+	BitmapData maskData;
 	{
-		HDC hDC = dc.GetHDC();
-		SelectObject(hDC, GetStockObject(BLACK_BRUSH));
-		SelectObject(hDC, GetStockObject(NULL_PEN));
+		Rect bounds(0, 0, bmp.GetWidth(), bmp.GetHeight());
+		bmp.LockBits(&bounds, ImageLockModeRead | ImageLockModeWrite, bmp.GetPixelFormat(), &colorData);
+		bmpMask.LockBits(&bounds, ImageLockModeRead | ImageLockModeWrite, bmp.GetPixelFormat(), &maskData);
+	}
 
-		DrawIconEx(hDC, 0, 0, m_hMainIconRsrc, bmpObj.bmWidth, bmpObj.bmHeight, 0, nullptr, DI_NORMAL);
-		dc.ReleaseHDC(hDC);
+	// Manual mask operation:
+	union
+	{
+		char* pDest;
+		DWORD* pLine;
+	};
+	pDest = (char*)colorData.Scan0 + colorData.Height * colorData.Stride;
+	const char* pMask = (char*)maskData.Scan0 + maskData.Height * maskData.Stride;
+
+	for(size_t y = colorData.Height; y--;) {
+		pDest -= colorData.Stride;
+		pMask -= maskData.Stride;
+		for(size_t x = colorData.Width; x--;)
+			if(!pMask[x])
+				pLine[x] = 0;
+			else
+				pLine[x] |= 0xFF000000;
 	}
 
 	CLSID pngClsid;
-	GetEncoderClsid(L"image/bmp", pngClsid);
+	GetEncoderClsid(L"image/png", pngClsid);
 	Gdiplus::Status stat = bmp.Save(path.c_str(), &pngClsid, nullptr);
 	switch(stat) {
 	case Gdiplus::Ok:
