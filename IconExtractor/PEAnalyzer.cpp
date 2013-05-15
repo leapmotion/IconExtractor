@@ -1,23 +1,13 @@
 #include "stdafx.h"
 #include "PEAnalyzer.h"
 #include <gdiplus.h>
+#include <Gdiplusimaging.h>
 #include <vector>
 
+using namespace Gdiplus;
 using namespace std;
 
-class AutoHandle
-{
-public:
-	AutoHandle(HANDLE hHnd):
-		m_hHnd(hHnd)
-	{}
-	~AutoHandle(void) {
-		if(m_hHnd)
-			CloseHandle(m_hHnd);
-	}
-
-	HANDLE m_hHnd;
-};
+void GetEncoderClsid(const WCHAR* format, CLSID& clsid);
 
 PEAnalyzer::PEAnalyzer(const wstring& path, int width):
 	m_path(path),
@@ -53,101 +43,83 @@ PEAnalyzer::~PEAnalyzer(void)
 }
 
 void PEAnalyzer::Save(const wstring& path) {
-	HBITMAP bitmap = iconInfo.hbmColor;
-	LPCWSTR filename = path.c_str();
-	HDC hDC = nullptr;
-
-	BITMAP bmp; 
-	WORD cClrBits; 
-	HANDLE hf; // file handle 
-	DWORD dwTotal; // total count of bytes 
-	DWORD cb; // incremental count of bytes 
-	DWORD dwTmp;
-
-	// create the bitmapinfo header information
-	if(!GetObject(bitmap, sizeof(BITMAP), (LPSTR)&bmp))
-		throw runtime_error("Could not retrieve bitmap info");
-
-	// Convert the color format to a count of bits. 
-	cClrBits = (WORD)(bmp.bmPlanes * bmp.bmBitsPixel); 
-	if (cClrBits == 1) 
-		cClrBits = 1; 
-	else if (cClrBits <= 4) 
-		cClrBits = 4; 
-	else if (cClrBits <= 8) 
-		cClrBits = 8; 
-	else if (cClrBits <= 16) 
-		cClrBits = 16; 
-	else if (cClrBits <= 24) 
-		cClrBits = 24; 
-	else cClrBits = 32; 
-
-
-
-
-	// Allocate memory for the BITMAPINFO structure.
-	PBITMAPINFO pbmi;
-	PBITMAPINFOHEADER pbih; // bitmap info-header 
-	if (cClrBits != 24)
-		pbmi = (PBITMAPINFO)LocalAlloc(LPTR, sizeof(BITMAPINFOHEADER) + sizeof(RGBQUAD) * (1<< cClrBits)); 
-	else 
-		pbmi = (PBITMAPINFO)LocalAlloc(LPTR, sizeof(BITMAPINFOHEADER)); 
-
-	// Initialize the fields in the BITMAPINFO structure. 
-
-	pbmi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER); 
-	pbmi->bmiHeader.biWidth = bmp.bmWidth; 
-	pbmi->bmiHeader.biHeight = bmp.bmHeight; 
-	pbmi->bmiHeader.biPlanes = bmp.bmPlanes; 
-	pbmi->bmiHeader.biBitCount = bmp.bmBitsPixel; 
-	if (cClrBits < 24) 
-		pbmi->bmiHeader.biClrUsed = (1<<cClrBits); 
-
-	// If the bitmap is not compressed, set the BI_RGB flag. 
-	pbmi->bmiHeader.biCompression = BI_RGB; 
-
-	// Compute the number of bytes in the array of color 
-	// indices and store the result in biSizeImage. 
-	pbmi->bmiHeader.biSizeImage = (pbmi->bmiHeader.biWidth + 7) / 8 * pbmi->bmiHeader.biHeight * cClrBits; 
-
-	// Set biClrImportant to 0, indicating that all of the 
-	// device colors are important. 
-	pbmi->bmiHeader.biClrImportant = 0; 
-
-	pbih = (PBITMAPINFOHEADER) pbmi; 
+	// Create the bitmap and the bitmap's mask:
+	Bitmap bmp(iconInfo.hbmColor, nullptr);
 	
-	vector<BYTE> bits(pbih->biSizeImage);
+	// Start off with the backing bitmap:
+	Graphics dc(&bmp);
 
-	// Retrieve the color table (RGBQUAD array) and the bits 
-	if(!GetDIBits(hDC, bitmap, 0, pbih->biHeight, bits.data(), pbmi, DIB_RGB_COLORS))
-		throw runtime_error("writeBMP::GetDIB error");
+	ImageAttributes attr;
 
-	// Now open file and save the data
-	hf = CreateFile(filename, GENERIC_READ | GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr); 
-	if(hf == INVALID_HANDLE_VALUE)
-		throw runtime_error("Could not create file for writing");
+	{
+		// The mask is monochromatic, and is an XOR mask.
+		Bitmap bmpMask(iconInfo.hbmMask, nullptr);
 
-	BITMAPFILEHEADER hdr; // bitmap file-header 
-	hdr.bfType = 'MB'; // 0x42 = "B" 0x4d = "M"
+		HBITMAP compatBitmap;
+		{
+			HDC hDc = dc.GetHDC();
+			compatBitmap = CreateCompatibleBitmap(hDc, bmp.GetWidth(), bmp.GetHeight());
+			dc.ReleaseHDC(hDc);
+		}
 
-	// Compute the size of the entire file. 
-	hdr.bfSize = (DWORD) (sizeof(BITMAPFILEHEADER) + pbih->biSize + pbih->biClrUsed  * sizeof(RGBQUAD) + pbih->biSizeImage);
-	hdr.bfReserved1 = 0; 
-	hdr.bfReserved2 = 0; 
+		Bitmap bmpMaskCompatible(compatBitmap, nullptr);
+		Graphics maskDC(&bmpMaskCompatible);
 
-	// Compute the offset to the array of color indices. 
-	hdr.bfOffBits = (DWORD) sizeof(BITMAPFILEHEADER) + pbih->biSize + pbih->biClrUsed * sizeof(RGBQUAD); 
+		maskDC.DrawImage(&bmpMask, 0, 0, 0, 0, bmpMask.GetWidth(), bmpMask.GetHeight(), UnitPixel);
 
-	// Copy the BITMAPFILEHEADER into the .BMP file. 
-	if (!WriteFile(hf, &hdr, sizeof(BITMAPFILEHEADER), &dwTmp, NULL))
-			throw runtime_error("Could not write in to file");
+		Pen blackPen(Color(255, 0, 0, 0), 3);
+		dc.DrawLine(&blackPen, Point(10, 10), Point(20, 20));
+		
+		HDC hDst = dc.GetHDC();
+		HDC hSrc = maskDC.GetHDC();
+		BitBlt(
+			hDst,
+			0,
+			0,
+			bmp.GetWidth(),
+			bmp.GetHeight(),
+			hSrc,
+			0,
+			0,
+			SRCCOPY
+		);
+		dc.ReleaseHDC(hDst);
+		maskDC.ReleaseHDC(hSrc);
+	}
 
-	// Copy the BITMAPINFOHEADER and RGBQUAD array into the file. 
-	if (!WriteFile(hf, pbih, sizeof(BITMAPINFOHEADER) + pbih->biClrUsed * sizeof(RGBQUAD),  &dwTmp, nullptr))
-		throw runtime_error("Could not write in to file");
+	{
+		CLSID pngClsid;
+		GetEncoderClsid(L"image/png", pngClsid);
+		Gdiplus::Status stat = bmp.Save(path.c_str(), &pngClsid, nullptr);
+		switch(stat) {
+		case Gdiplus::Ok:
+			break;
+		case Gdiplus::InvalidParameter:
+			throw runtime_error("GDI+ reports that an invalid parameter was passed when attempting to serialize an image");
+		default:
+			throw runtime_error("GDI+ returned a failure condition when attempting to serialize the output image");
+		}
+	}
+}
 
-	// Copy the array of color indices into the .BMP file. 
-	dwTotal = cb = pbih->biSizeImage; 
-	if(!WriteFile(hf, bits.data(), cb, &dwTmp, nullptr))
-		throw runtime_error("Could not write in to file");
+void GetEncoderClsid(const WCHAR* format, CLSID& clsid)
+{
+	UINT num = 0;
+	UINT size = 0;
+	GetImageEncodersSize(&num, &size);
+	if(!size)
+		throw std::runtime_error("Failed to obtain the number of image encoders");
+
+	unique_ptr<ImageCodecInfo> imageCodecs((ImageCodecInfo*)new char[size]);
+	memset(imageCodecs.get(), 0, size);
+	GetImageEncoders(num, size, imageCodecs.get());
+
+	for(size_t i = num; i--; )
+		if(!wcscmp(imageCodecs.get()[i].MimeType, format))
+		{
+			clsid = imageCodecs.get()[i].Clsid;
+			return;
+		}
+
+	throw std::runtime_error("Failed to obtain the number of image encoders");
 }

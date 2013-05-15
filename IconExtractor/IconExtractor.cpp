@@ -1,9 +1,11 @@
 #include "stdafx.h"
 #include "PEAnalyzer.h"
+#include <gdiplus.h>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 
+using namespace Gdiplus;
 using namespace std;
 
 void PrintUsage(wchar_t* argv[]) {
@@ -11,6 +13,24 @@ void PrintUsage(wchar_t* argv[]) {
 	cout << "Usage:" << endl
 			<< argv[0] << " <img> <outname> [width]" << endl;
 }
+
+class GdiPlusInitializer {
+public:
+	GdiPlusInitializer(void)
+	{
+		GdiplusStartupInput gdiplusStartupInput;
+		GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, nullptr);
+	}
+
+	~GdiPlusInitializer(void)
+	{
+		GdiplusShutdown(gdiplusToken);
+	}
+
+private:
+	ULONG_PTR gdiplusToken;
+};
+GdiPlusInitializer g_initializer;
 
 int wmain(int argc, wchar_t* argv[])
 {
