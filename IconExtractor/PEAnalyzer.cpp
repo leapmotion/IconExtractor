@@ -109,7 +109,8 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 
 	vector<DWORD> rgba(hdr.biWidth * hdr.biHeight);
 	const BYTE* pMaskPayload = (BYTE*)&m_pIcon->icColors[hdr.biClrUsed] + hdr.biWidth * hdr.biHeight * hdr.biBitCount / (8 * 2);
-	
+	DWORD maskStride = (hdr.biWidth + 23) / 8;
+
 	// Fix up the mask map:
 	BYTE maskMap[8];
 	for(size_t i = 8; i--;)
@@ -130,7 +131,7 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 					else
 						pDest[x] = 0xFF000000 | pMappingTable[pColorPayload[x]];
 				pColorPayload += hdr.biWidth;
-				pMaskPayload += hdr.biWidth / 8;
+				pMaskPayload += maskStride;
 				pDest += hdr.biWidth;
 			}
 		}
@@ -146,7 +147,7 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 					else
 						pDest[x] = 0xFF000000 | pColorPayload[x];
 				pColorPayload += hdr.biWidth;
-				pMaskPayload += hdr.biWidth / 8;
+				pMaskPayload += maskStride;
 				pDest += hdr.biWidth;
 			}
 		}
