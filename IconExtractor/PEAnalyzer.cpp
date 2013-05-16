@@ -9,7 +9,7 @@ using namespace std;
 
 #define FLIP(x) ((x >> 24) | (((x >> 16) & 0xFF) << 8) | (((x >> 8) & 0xFF) << 16) | ((x & 0xFF) << 24))
 
-PEAnalyzer::PEAnalyzer(const wstring& path, int width):
+PEAnalyzer::PEAnalyzer(const wstring& path, size_t width):
 	m_path(path),
 	m_hModule(nullptr),
 	m_pIcon(nullptr),

@@ -64,7 +64,7 @@ struct IHDR:
 class PEAnalyzer
 {
 public:
-	PEAnalyzer(const wstring& path, int width = 0);
+	PEAnalyzer(const wstring& path, size_t width = 0);
 	~PEAnalyzer(void);
 
 private:

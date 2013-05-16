@@ -11,7 +11,9 @@ using namespace std;
 void PrintUsage(wchar_t* argv[]) {
 	// EXE name first, followed by the desired dimensions
 	cout << "Usage:" << endl
-			<< argv[0] << " <img> <outname> [width]" << endl;
+			<< argv[0] << " <img> <outname> [width]" << endl
+			<< " If the width is set to -1, or is omitted, the largest available image will be returned instead" << endl
+			<< " The width must not be zero" << endl;
 }
 
 class GdiPlusInitializer {
@@ -37,10 +39,13 @@ int wmain(int argc, wchar_t* argv[])
 	// Argument parsing
 	wstring imgName;
 	wstring outName = L"out.png";
-	int width = 0;
+	size_t width = -1;
 	switch(argc) {
 	case 4:
-		if(wstringstream(argv[3]) >> width)
+		if(
+			(wstringstream(argv[3]) >> width) &&
+			width
+		)
 		{
 	case 3:
 			outName = argv[2];
