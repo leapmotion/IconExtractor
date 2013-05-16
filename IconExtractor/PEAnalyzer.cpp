@@ -109,7 +109,7 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 
 	vector<DWORD> rgba(hdr.biWidth * hdr.biHeight);
 	const BYTE* pMaskPayload = (BYTE*)&m_pIcon->icColors[hdr.biClrUsed] + hdr.biWidth * hdr.biHeight * hdr.biBitCount / (8 * 2);
-	DWORD maskStride = (hdr.biWidth + 23) / 8;
+	DWORD maskStride = 4 * ((hdr.biWidth + 31) / 32);
 
 	// Fix up the mask map:
 	BYTE maskMap[8];
