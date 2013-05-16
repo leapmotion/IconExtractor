@@ -101,7 +101,6 @@ PEAnalyzer::~PEAnalyzer(void)
 	FreeLibrary(m_hModule);
 }
 
-
 void PEAnalyzer::SaveAsIcon(const wstring& path)
 {
 	// Create the bitmap and the bitmap's mask:
