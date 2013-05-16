@@ -62,7 +62,7 @@ PEAnalyzer::PEAnalyzer(const wstring& path, size_t width):
 		if(!pIcon)
 			throw runtime_error("Failed to obtain an icon by its resource identifier, as described by the RT_GROUP_ICON structure");
 
-		int curWidth;
+		size_t curWidth;
 		if(pIconGroup->idEntries[i].bWidth)
 			curWidth = pIcon->icHeader.biWidth;
 		else {
