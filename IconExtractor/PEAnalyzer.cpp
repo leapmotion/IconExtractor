@@ -82,7 +82,7 @@ PEAnalyzer::PEAnalyzer(const wstring& path, size_t width):
 			// Try to find the IHDR chunk:
 			auto pngChunk = (PNGCHUNK*)(&hdr + 1);
 			if(pngChunk->type != 'RDHI')
-				throw runtime_error("Expected teh IHDR chunk at the beginning of the PNG; was not found");
+				throw runtime_error("Expected the IHDR chunk at the beginning of the PNG; was not found");
 				
 			// Extract width:
 			IHDR* pIhdr = (IHDR*)pngChunk;
@@ -120,7 +120,7 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 	// Create the bitmap and the bitmap's mask:
 	const auto& hdr = m_pIcon->icHeader;
 
-	vector<DWORD> rgba(hdr.biWidth * hdr.biHeight);
+	vector<DWORD> rgba(hdr.biWidth * hdr.biHeight / 2);
 	const BYTE* pMaskPayload = (BYTE*)&m_pIcon->icColors[hdr.biClrUsed] + hdr.biWidth * hdr.biHeight * hdr.biBitCount / (8 * 2);
 	DWORD maskStride = 4 * ((hdr.biWidth + 31) / 32);
 
@@ -149,9 +149,9 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 						];
 				}
 
+				pDest += hdr.biWidth;
 				pColorPayload += hdr.biWidth / 2;
 				pMaskPayload += maskStride;
-				pDest += hdr.biWidth;
 			}
 		}
 		break;
@@ -166,9 +166,10 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 						pDest[x] = 0;
 					else
 						pDest[x] = 0xFF000000 | pMappingTable[pColorPayload[x]];
+
+				pDest += hdr.biWidth;
 				pColorPayload += hdr.biWidth;
 				pMaskPayload += maskStride;
-				pDest += hdr.biWidth;
 			}
 		}
 		break;
@@ -187,9 +188,10 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 					else
 						// No alpha channel specified, here.  We have to force it on.
 						pDest[x] = 0xFF000000 | pColorPayload[x];
+
+				pDest += hdr.biWidth;
 				pColorPayload += hdr.biWidth;
 				pMaskPayload += maskStride;
-				pDest += hdr.biWidth;
 			}
 		}
 		break;
@@ -205,9 +207,9 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 	Bitmap bmp(
 		hdr.biWidth,
 		hdr.biHeight / 2,
-		hdr.biWidth * 4,
+		-hdr.biWidth * 4,
 		PixelFormat32bppARGB,
-		(BYTE*)rgba.data()
+		(BYTE*)(rgba.data() + rgba.size() - hdr.biWidth)
 	);
 
 	CLSID pngClsid;
