@@ -118,6 +118,29 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 	// Construct image:
 	DWORD* pDest = rgba.data();
 	switch(hdr.biBitCount) {
+	case 4:
+		{
+			const DWORD* pMappingTable = (DWORD*)m_pIcon->icColors;
+			const BYTE* pColorPayload = (BYTE*)&m_pIcon->icColors[m_pIcon->icHeader.biClrUsed];
+
+			for(size_t y = hdr.biHeight / 2; y--;)
+			{
+				for(size_t x = hdr.biWidth; x--;)
+				{
+					if(pMaskPayload[x >> 3] & maskMap[x & 7])
+						pDest[x] = 0;
+					else
+						pDest[x] = 0xFF000000 | pMappingTable[
+							(pColorPayload[x >> 1] >> (x & 1 ? 0 : 4)) & 0xF
+						];
+				}
+
+				pColorPayload += hdr.biWidth / 2;
+				pMaskPayload += maskStride;
+				pDest += hdr.biWidth;
+			}
+		}
+		break;
 	case 8:
 		{
 			const DWORD* pMappingTable = (DWORD*)m_pIcon->icColors;

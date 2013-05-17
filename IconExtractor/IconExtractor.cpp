@@ -11,7 +11,7 @@ using namespace std;
 void PrintUsage(wchar_t* argv[]) {
 	// EXE name first, followed by the desired dimensions
 	cout << "Usage:" << endl
-			<< argv[0] << " <img> <outname> [width]" << endl
+			<< argv[0] << " <img> [outname] [width]" << endl
 			<< " If the width is set to -1, or is omitted, the largest available image will be returned instead" << endl
 			<< " The width must not be zero" << endl;
 }
