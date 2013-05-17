@@ -121,7 +121,9 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 	const auto& hdr = m_pIcon->icHeader;
 
 	vector<DWORD> rgba(hdr.biWidth * hdr.biHeight / 2);
-	const BYTE* pMaskPayload = (BYTE*)&m_pIcon->icColors[hdr.biClrUsed] + hdr.biWidth * hdr.biHeight * hdr.biBitCount / (8 * 2);
+	const BYTE* pMaskPayload = (BYTE*)&m_pIcon->icColors[hdr.biClrUsed] + rgba.size() * hdr.biBitCount / 8;
+
+	// Mask stride must be rounded up to the next DWORD:
 	DWORD maskStride = 4 * ((hdr.biWidth + 31) / 32);
 
 	// Fix up the mask map:
@@ -140,14 +142,12 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 			for(size_t y = hdr.biHeight / 2; y--;)
 			{
 				for(size_t x = hdr.biWidth; x--;)
-				{
 					if(pMaskPayload[x >> 3] & maskMap[x & 7])
 						pDest[x] = 0;
 					else
 						pDest[x] = 0xFF000000 | pMappingTable[
 							(pColorPayload[x >> 1] >> (x & 1 ? 0 : 4)) & 0xF
 						];
-				}
 
 				pDest += hdr.biWidth;
 				pColorPayload += hdr.biWidth / 2;
@@ -203,18 +203,24 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 		throw runtime_error("Embedded icon at the requested size has an unsupported bit depth");
 	}
 	
-	// Top half of the bitmap:
-	Bitmap bmp(
-		hdr.biWidth,
-		hdr.biHeight / 2,
-		-hdr.biWidth * 4,
-		PixelFormat32bppARGB,
-		(BYTE*)(rgba.data() + rgba.size() - hdr.biWidth)
-	);
-
+	// Get the PNG encoder:
 	CLSID pngClsid;
 	GetEncoderClsid(L"image/png", pngClsid);
-	Gdiplus::Status stat = bmp.Save(path.c_str(), &pngClsid, nullptr);
+
+	// Construct and save:
+	Gdiplus::Status stat = 
+		Bitmap(
+			hdr.biWidth,
+			hdr.biHeight / 2,
+			-hdr.biWidth * 4,
+			PixelFormat32bppARGB,
+			(BYTE*)(rgba.data() + rgba.size() - hdr.biWidth)
+		).Save(
+			path.c_str(),
+			&pngClsid,
+			nullptr
+		);
+
 	switch(stat) {
 	case Gdiplus::Ok:
 		break;
