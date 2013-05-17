@@ -54,6 +54,8 @@ PEAnalyzer::PEAnalyzer(const wstring& path, size_t width):
 	size_t i;
 	size_t iClosest = 0;
 	size_t bestWidth = 0;
+	size_t bestBitDepth = 0;
+
 	for(i = pIconGroup->idCount; i--;) {
 		// Now load the descendant resource:
 		HRSRC hTargetIcon = FindResource(m_hModule, MAKEINTRESOURCE(pIconGroup->idEntries[i].nID), RT_ICON);
@@ -87,12 +89,24 @@ PEAnalyzer::PEAnalyzer(const wstring& path, size_t width):
 			curWidth = FLIP(pIhdr->width);
 		}
 		
-		if(width < curWidth || curWidth < bestWidth)
+		if(width < curWidth)
+			// Too large
+			continue;
+			
+		if(
+			// True if this isn't an improvement
+			curWidth < bestWidth ||
+
+			// True if this isn't bigger, but doesn't have a better bit depth
+			curWidth == bestWidth &&
+			pIcon->icHeader.biBitCount < bestBitDepth
+		)
 			continue;
 
 		m_pIcon = pIcon;
 		m_pIconEntry = &pIconGroup->idEntries[i];
 		bestWidth = curWidth;
+		bestBitDepth = pIcon->icHeader.biBitCount;
 	}
 }
 
