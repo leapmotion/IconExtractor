@@ -179,8 +179,13 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 			{
 				for(size_t x = hdr.biWidth; x--;)
 					if(pMaskPayload[x >> 3] & maskMap[x & 7])
+						// Mask overrides this pixel value, force to zero
 						pDest[x] = 0;
+					else if(pColorPayload[x] & 0xFF000000)
+						// This pixel carries its own alpha channel-allow it
+						pDest[x] = pColorPayload[x];
 					else
+						// No alpha channel specified, here.  We have to force it on.
 						pDest[x] = 0xFF000000 | pColorPayload[x];
 				pColorPayload += hdr.biWidth;
 				pMaskPayload += maskStride;
