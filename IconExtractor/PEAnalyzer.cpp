@@ -88,14 +88,10 @@ PEAnalyzer::PEAnalyzer(const wstring& path, size_t width):
 			IHDR* pIhdr = (IHDR*)pngChunk;
 			curWidth = FLIP(pIhdr->width);
 		}
-		
-		if(width < curWidth)
-			// Too large
-			continue;
 			
 		if(
 			// True if this isn't an improvement
-			curWidth < bestWidth ||
+			abs((long long)curWidth - (long long)width) > abs((long long)bestWidth - (long long)width) ||
 
 			// True if this isn't bigger, but doesn't have a better bit depth
 			curWidth == bestWidth &&
