@@ -193,6 +193,8 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 			}
 		}
 		break;
+	case 16:
+		throw runtime_error("16-bits-per-pixel icon resources are currently unsupported");
 	case 24:
 		throw runtime_error("24-bits-per-pixel icon resources are currently unsupported");
 	default:
