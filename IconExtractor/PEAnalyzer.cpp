@@ -235,9 +235,7 @@ void PEAnalyzer::SaveAsIcon(const wstring& path)
 
 void PEAnalyzer::SaveAsPng(const wstring& path)
 {
-	// Create the bitmap and the bitmap's mask:
-	const auto& hdr = m_pIcon->icHeader;
-
+	// We don't bother with any analysis.  The original PNG is ripped from its containing EXE and written directly to disk.
 	DWORD dwWritten;
 	HANDLE hFile = CreateFile(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
 	WriteFile(hFile, m_pIcon, m_pIconEntry->dwBytesInRes, &dwWritten, nullptr);
